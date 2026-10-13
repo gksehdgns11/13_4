@@ -1,3 +1,3 @@
 import streamlit as st
-st.title('수면 관리')
-st.write('')
+st.title('메인 페이지')
+st.write('...')
