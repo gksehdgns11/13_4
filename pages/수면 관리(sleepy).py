@@ -10,13 +10,9 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 세션 상태 초기화 ---
+# --- 세션 상태 초기화 (기본 빈 리스트로 설정) ---
 if "sleep_records" not in st.session_state:
-    st.session_state.sleep_records = [
-        {"date": "2026-10-16", "bedtime": "2026-10-15 23:00", "waketime": "2026-10-16 07:00", "duration": 8.0, "quality": "좋음"},
-        {"date": "2026-10-17", "bedtime": "2026-10-16 23:30", "waketime": "2026-10-17 07:00", "duration": 7.5, "quality": "보통"},
-        {"date": "2026-10-18", "bedtime": "2026-10-17 22:30", "waketime": "2026-10-18 06:30", "duration": 8.0, "quality": "매우 좋음"},
-    ]
+    st.session_state.sleep_records = []
 
 if "target_bedtime" not in st.session_state:
     st.session_state.target_bedtime = time(23, 0)
@@ -50,9 +46,9 @@ def calculate_streak(records):
     return streak
 
 def calculate_regularity_score(records):
-    """최근 7회 수면 규칙성 점수 계산 (100점 만점)"""
+    """최근 7회 수면 규칙성 점수 계산 (기록이 없을 경우 None 반환)"""
     if not records:
-        return 0
+        return None
     recent_records = records[-7:]
     durations = [r["duration"] for r in recent_records]
     avg_duration = sum(durations) / len(durations)
@@ -108,25 +104,30 @@ with st.sidebar:
 st.title("🌙 Sleepy - 건강한 수면 습관 관리")
 st.markdown("개인의 생활 패턴에 맞춰 최적의 수면 시간을 찾고 수면 습관을 기록해 보세요.")
 
-# 대시보드 핵심 지표
+# 데이터 유무에 따른 수치 예외 처리
 streak_count = calculate_streak(st.session_state.sleep_records)
 regularity_score = calculate_regularity_score(st.session_state.sleep_records)
 
 if st.session_state.sleep_records:
     recent_7 = st.session_state.sleep_records[-7:]
     avg_sleep = sum([r["duration"] for r in recent_7]) / len(recent_7)
+    avg_sleep_str = f"{avg_sleep:.1f}시간"
+    regularity_score_str = f"{regularity_score}점"
 else:
     avg_sleep = 0.0
+    avg_sleep_str = "- (기록 없음)"
+    regularity_score_str = "- (기록 없음)"
 
+# 대시보드 핵심 지표 출력
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("🔥 연속 기록", f"{streak_count}일째")
-c2.metric("📊 최근 7회 평균 수면", f"{avg_sleep:.1f}시간")
-c3.metric("✨ 수면 규칙성 점수", f"{regularity_score}점")
+c2.metric("📊 최근 7회 평균 수면", avg_sleep_str)
+c3.metric("✨ 수면 규칙성 점수", regularity_score_str)
 c4.metric("🎯 목표 수면 시간", f"{target_duration:.1f}시간")
 
 st.divider()
 
-# 메인 탭 구성을 통한 기능 분리
+# 메인 탭
 tab1, tab2, tab3 = st.tabs(["✍️ 수면 기록 & 계산기", "📈 수면 패턴 분석", "📜 수면 일지"])
 
 # 탭 1: 수면 기록 및 추천 취침 시간 계산기
@@ -194,28 +195,20 @@ with tab1:
             st.success("수면 기록이 저장되었습니다.")
             st.rerun()
 
-# 탭 2: 수면 패턴 분석 (수정된 그래프 부분)
+# 탭 2: 수면 패턴 분석
 with tab2:
     st.subheader("📊 최근 수면 시간 변화")
     if not st.session_state.sleep_records:
-        st.info("수면 기록이 없습니다. 먼저 기록을 등록해 주세요.")
+        st.info("저장된 수면 기록이 없습니다. 먼저 첫 수면 기록을 등록해 보세요!")
     else:
-        # 데이터 정제 및 그래프용 데이터프레임 생성
         df = pd.DataFrame(st.session_state.sleep_records)
         df_chart = df.tail(14).copy()
         
-        # '날짜'를 인덱스로 설정하고 수면 시간 및 목표 수면 시간 컬럼 정리
         df_chart["실제 수면 시간"] = df_chart["duration"]
         df_chart["목표 수면 시간"] = target_duration
-        
-        # 날짜를 축으로 사용하기 위해 인덱스로 지정
         chart_data = df_chart.set_index("date")[["실제 수면 시간", "목표 수면 시간"]]
         
-        # 막대 그래프 출력 (실제 수면 시간 vs 목표 수면 시간 비교 가능)
-        st.bar_chart(
-            chart_data,
-            use_container_width=True
-        )
+        st.bar_chart(chart_data, use_container_width=True)
         
         st.subheader("💬 수면 피드백")
         if avg_sleep >= target_duration - 0.5 and avg_sleep <= target_duration + 0.5:
