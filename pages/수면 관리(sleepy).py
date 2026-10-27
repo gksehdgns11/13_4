@@ -190,4 +190,68 @@ with tab1:
     col_in1, col_in2 = st.columns(2)
     with col_in1:
         bed_d = st.date_input("잠든 날짜", value=record_date - timedelta(days=1))
-        bed_t = st.time_input
+        bed_t = st.time_input("잠든 시간", value=time(23, 0))
+    with col_in2:
+        wake_d = st.date_input("일어난 날짜", value=record_date)
+        wake_t = st.time_input("일어난 시간", value=time(7, 0))
+        
+    bed_datetime = datetime.combine(bed_d, bed_t)
+    wake_datetime = datetime.combine(wake_d, wake_t)
+    
+    if wake_datetime <= bed_datetime:
+        st.error("⚠️ 기상 시간은 잠든 시간보다 나중이어야 합니다.")
+    else:
+        calc_duration = (wake_datetime - bed_datetime).total_seconds() / 3600
+        st.info(f"⏱️ 계산된 총 수면 시간: **{calc_duration:.1f} 시간**")
+        
+        if st.button("수면 기록 저장", type="primary", use_container_width=True):
+            new_record = {
+                "date": str(record_date),
+                "bedtime": bed_datetime.strftime("%Y-%m-%d %H:%M"),
+                "waketime": wake_datetime.strftime("%Y-%m-%d %H:%M"),
+                "duration": round(calc_duration, 1),
+                "quality": quality
+            }
+            st.session_state.sleep_records.append(new_record)
+            st.success("수면 기록이 저장되었습니다.")
+            st.rerun()
+
+# 탭 2: 수면 패턴 분석
+with tab2:
+    st.subheader("📊 최근 수면 시간 변화")
+    if not st.session_state.sleep_records:
+        st.info("저장된 수면 기록이 없습니다. 먼저 첫 수면 기록을 등록해 보세요!")
+    else:
+        df = pd.DataFrame(st.session_state.sleep_records)
+        df_chart = df.tail(14).copy()
+        
+        df_chart["실제 수면 시간"] = df_chart["duration"]
+        df_chart["목표 수면 시간"] = target_duration
+        chart_data = df_chart.set_index("date")[["실제 수면 시간", "목표 수면 시간"]]
+        
+        st.bar_chart(chart_data, use_container_width=True)
+        
+        st.subheader("💬 수면 피드백")
+        if avg_sleep >= target_duration - 0.5 and avg_sleep <= target_duration + 0.5:
+            st.success("🎉 목표 수면 시간을 잘 유지하고 있습니다. 계속해서 일정한 패턴을 유지해 보세요!")
+        elif avg_sleep < target_duration - 0.5:
+            st.warning("⚠️ 목표 수면 시간보다 모자랍니다. 취침 시간을 조금 앞당겨 건강을 챙겨보세요.")
+        else:
+            st.info("ℹ️ 목표 수면 시간보다 더 많이 취침 중입니다. 규칙적인 일과 형성을 권장합니다.")
+
+# 탭 3: 수면 일지 및 삭제
+with tab3:
+    st.subheader("📜 저장된 수면 기록 목록")
+    if not st.session_state.sleep_records:
+        st.info("등록된 수면 기록이 없습니다.")
+    else:
+        df_display = pd.DataFrame(st.session_state.sleep_records)
+        df_display.columns = ["날짜", "취침 일시", "기상 일시", "수면 시간(h)", "만족도"]
+        st.dataframe(df_display, use_container_width=True)
+        
+        st.caption("특정 날짜의 수면 기록을 선택하여 삭제할 수 있습니다.")
+        del_date = st.selectbox("삭제할 기록 선택", [r["date"] for r in st.session_state.sleep_records])
+        if st.button("선택한 기록 삭제"):
+            st.session_state.sleep_records = [r for r in st.session_state.sleep_records if r["date"] != del_date]
+            st.success(f"{del_date} 날짜 기록이 삭제되었습니다.")
+            st.rerun()
