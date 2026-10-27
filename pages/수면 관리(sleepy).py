@@ -191,4 +191,3 @@ with tab1:
     with col_in1:
         bed_d = st.date_input("잠든 날짜", value=record_date - timedelta(days=1))
         bed_t = st.time_input
-    
