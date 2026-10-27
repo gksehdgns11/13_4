@@ -25,7 +25,7 @@ if "reminder_time" not in st.session_state:
 
 # --- 유틸리티 함수 ---
 def get_age_recommended_sleep(age):
-    """나이에 따른 권장 수면 시간 가이드라인 (National Sleep Foundation 기준)"""
+    """나이에 따른 권장 수면 시간 가이드라인"""
     if age <= 1:
         return "영아 (1~2세)", "11~14시간", 12.0
     elif age <= 5:
@@ -61,7 +61,7 @@ def calculate_streak(records):
     return streak
 
 def calculate_regularity_score(records):
-    """최근 7회 수면 규칙성 점수 계산 (기록이 없을 경우 None 반환)"""
+    """최근 7회 수면 규칙성 점수 계산"""
     if not records:
         return None
     recent_records = records[-7:]
@@ -74,7 +74,7 @@ def calculate_regularity_score(records):
     score = max(0, min(100, int(100 - (std_dev * 15))))
     return score
 
-# --- 사이드바: 목표 설정, 알림 및 백업 ---
+# --- 사이드바 ---
 with st.sidebar:
     st.header("🌙 수면 목표 설정")
     set_bedtime = st.time_input("목표 취침 시간", value=st.session_state.target_bedtime)
@@ -119,7 +119,6 @@ with st.sidebar:
 st.title("🌙 Sleepy - 건강한 수면 습관 관리")
 st.markdown("개인의 생활 패턴에 맞춰 최적의 수면 시간을 찾고 수면 습관을 기록해 보세요.")
 
-# 데이터 유무에 따른 수치 예외 처리
 streak_count = calculate_streak(st.session_state.sleep_records)
 regularity_score = calculate_regularity_score(st.session_state.sleep_records)
 
@@ -133,7 +132,6 @@ else:
     avg_sleep_str = "- (기록 없음)"
     regularity_score_str = "- (기록 없음)"
 
-# 대시보드 핵심 지표 출력
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("🔥 연속 기록", f"{streak_count}일째")
 c2.metric("📊 최근 7회 평균 수면", avg_sleep_str)
@@ -145,7 +143,7 @@ st.divider()
 # 메인 탭
 tab1, tab2, tab3 = st.tabs(["✍️ 수면 기록 & 계산기", "📈 수면 패턴 분석", "📜 수면 일지"])
 
-# 탭 1: 수면 기록 및 추천 취침 시간 계산기
+# 탭 1
 with tab1:
     st.subheader("💡 나이별 추천 수면 시간 & 취침 계산기")
     with st.expander("개인 맞춤 추천 취침 시간 확인하기", expanded=True):
@@ -170,8 +168,23 @@ with tab1:
         wake_dt = datetime.combine(dummy_today, desired_wake)
         rec_bed_dt = wake_dt - timedelta(hours=selected_hours)
         
-        # 📌 세로선(|) 제거 및 구분을 더 명확하게 수정된 파란색 박스
-        st.info(f"👶/👨 **연령별 분류:** {group_name}  ,  **의학적 권장 수면시간:** {rec_range_str}")
+        # 📌 세로선(border)이 없는 커스텀 스타일 박스 출력
+        st.markdown(
+            f"""
+            <div style="
+                background-color: #1E293B;
+                color: #38BDF8;
+                padding: 12px 16px;
+                border-radius: 8px;
+                margin-top: 10px;
+                margin-bottom: 15px;
+                font-size: 15px;
+            ">
+                👶/👨 <b>연령별 분류:</b> {group_name} &nbsp;&nbsp;&nbsp;&nbsp; <b>의학적 권장 수면시간:</b> {rec_range_str}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
         
         st.markdown(f"""
         > 💡 **맞춤 추천 취침 시간:** **오후 {rec_bed_dt.strftime('%I:%M')}**  
@@ -216,7 +229,7 @@ with tab1:
             st.success("수면 기록이 저장되었습니다.")
             st.rerun()
 
-# 탭 2: 수면 패턴 분석
+# 탭 2
 with tab2:
     st.subheader("📊 최근 수면 시간 변화")
     if not st.session_state.sleep_records:
@@ -239,7 +252,7 @@ with tab2:
         else:
             st.info("ℹ️ 목표 수면 시간보다 더 많이 취침 중입니다. 규칙적인 일과 형성을 권장합니다.")
 
-# 탭 3: 수면 일지 및 삭제
+# 탭 3
 with tab3:
     st.subheader("📜 저장된 수면 기록 목록")
     if not st.session_state.sleep_records:
@@ -250,8 +263,4 @@ with tab3:
         st.dataframe(df_display, use_container_width=True)
         
         st.caption("특정 날짜의 수면 기록을 선택하여 삭제할 수 있습니다.")
-        del_date = st.selectbox("삭제할 기록 선택", [r["date"] for r in st.session_state.sleep_records])
-        if st.button("선택한 기록 삭제"):
-            st.session_state.sleep_records = [r for r in st.session_state.sleep_records if r["date"] != del_date]
-            st.success(f"{del_date} 날짜 기록이 삭제되었습니다.")
-            st.rerun()
+        del_date = st.selectbox("삭제할 기록 선택", [r["date"] for r in st.session_state.sleep
