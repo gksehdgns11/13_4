@@ -24,6 +24,21 @@ if "reminder_time" not in st.session_state:
     st.session_state.reminder_time = time(22, 30)
 
 # --- 유틸리티 함수 ---
+def get_age_recommended_sleep(age):
+    """나이에 따른 권장 수면 시간 가이드라인 (National Sleep Foundation 기준)"""
+    if age <= 1:
+        return "영아 (1~2세)", "11~14시간", 12.0
+    elif age <= 5:
+        return "유아 (3~5세)", "10~13시간", 11.0
+    elif age <= 13:
+        return "학령기 아동 (6~13세)", "9~11시간", 10.0
+    elif age <= 17:
+        return "청소년 (14~17세)", "8~10시간", 9.0
+    elif age <= 64:
+        return "성인 (18~64세)", "7~9시간", 8.0
+    else:
+        return "노년층 (65세 이상)", "7~8시간", 7.5
+
 def calculate_streak(records):
     """연속 기록 일수 계산"""
     if not records:
@@ -132,29 +147,35 @@ tab1, tab2, tab3 = st.tabs(["✍️ 수면 기록 & 계산기", "📈 수면 패
 
 # 탭 1: 수면 기록 및 추천 취침 시간 계산기
 with tab1:
-    st.subheader("💡 추천 취침 시간 계산기")
-    with st.expander("개인 맞춤 취침 시간 추천 받기", expanded=True):
+    st.subheader("💡 나이별 추천 수면 시간 & 취침 계산기")
+    with st.expander("개인 맞춤 추천 취침 시간 확인하기", expanded=True):
         col_calc1, col_calc2, col_calc3 = st.columns(3)
         with col_calc1:
-            age = st.number_input("나이", min_value=1, max_value=100, value=25)
+            age = st.number_input("나이 (세)", min_value=1, max_value=100, value=25)
         with col_calc2:
             desired_wake = st.time_input("희망 기상 시간", value=time(7, 0))
         with col_calc3:
-            pattern = st.selectbox("평소 수면 패턴", ["짧은 수면 (6~7시간)", "보통 수면 (7~8시간)", "충분한 수면 (8~9시간)"])
+            pattern = st.selectbox("수면 타입 선택", ["기본 권장 수면시간 적용", "짧은 수면 선호", "충분한 수면 선호"])
         
-        rec_hours = 8.0
-        if "6~7시간" in pattern:
-            rec_hours = 6.5
-        elif "8~9시간" in pattern:
-            rec_hours = 8.5
+        # 나이별 권장 수면 정보 조회
+        group_name, rec_range_str, base_rec_hours = get_age_recommended_sleep(age)
+        
+        # 수면 타입 선호도 반영
+        if pattern == "짧은 수면 선호":
+            selected_hours = base_rec_hours - 0.5
+        elif pattern == "충분한 수면 선호":
+            selected_hours = base_rec_hours + 0.5
+        else:
+            selected_hours = base_rec_hours
             
         dummy_today = datetime.today().date()
         wake_dt = datetime.combine(dummy_today, desired_wake)
-        rec_bed_dt = wake_dt - timedelta(hours=rec_hours)
+        rec_bed_dt = wake_dt - timedelta(hours=selected_hours)
         
+        st.info(f"👶/👨 **연령별 분류:** {group_name} | **의학적 권장 수면시간:** {rec_range_str}")
         st.markdown(f"""
-        > 💡 **추천 취침 시간:** **오후 {rec_bed_dt.strftime('%I:%M')}**  
-        > (권장 수면 시간: **{rec_hours}시간** | 예상 기상 시간: **{desired_wake.strftime('%H:%M')}**)
+        > 💡 **맞춤 추천 취침 시간:** **오후 {rec_bed_dt.strftime('%I:%M')}**  
+        > (적용 수면 시간: **{selected_hours:.1f}시간** | 희망 기상 시간: **{desired_wake.strftime('%H:%M')}**)
         """)
 
     st.divider()
